@@ -164,8 +164,16 @@ def _prepare(stage):
         raise UpstreamError("bash is required to run the upstream preparation "
                             f"scripts ({scripts}); on Windows use Git Bash")
     env = git_env()
-    env["WKAL_UPSTREAM_RELEASE_TAG"] = "v0.1.5-915a65e"
-    
+    # Fix release tag resolution for the unified autoloader.
+deps_script = stage / "tools/download_deps.sh"
+if deps_script.is_file():
+    content = deps_script.read_text()
+    old = 'PAYLOAD_TAG=$(git -C "$PAYLOAD_SUBMODULE" describe --tags --always)'
+    new = 'PAYLOAD_TAG="v0.1.5-915a65e"'
+    if old not in content:
+        raise UpstreamError("Could not find expected PAYLOAD_TAG line")
+    deps_script.write_text(content.replace(old, new, 1))
+
     for script in PREPARE_SCRIPTS:
         print(f"upstream: preparing {script} ...")
         output = _run([bash, script], cwd=stage, env=env)
